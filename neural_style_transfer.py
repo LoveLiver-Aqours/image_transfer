@@ -1,3 +1,5 @@
+FLAG_JUPYTER = False
+
 from keras.models import Model, Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers import Input, Lambda, merge
@@ -48,10 +50,10 @@ def style_loss(style_features, outputs_features):
     M = int(style_features.shape[0] * style_features.shape[1])
     return K.sum(K.square(A - G)) / (4. * (N ** 2) * (M ** 2))
 
-# /*--- ??? ---*/
+# /*--- for smoothing ---*/
 def total_loss(img_out, weights_total):
-    print(img_out.shape[2])
-    print(img_out.shape[1])
+    #print(img_out.shape[2])
+    #print(img_out.shape[1])
     a = K.square(img_out[:, :img_out.shape[1] - 1, :img_out.shape[2] - 1, :] - img_out[:, 1:, :img_out.shape[2] - 1, :])
     b = K.square(img_out[:, :img_out.shape[1] - 1, :img_out.shape[2] - 1, :] - img_out[:, :img_out.shape[1] - 1, 1:, :])
     return weights_total * K.sum(K.pow(a + b, 1.25))
@@ -111,25 +113,31 @@ def grads_func(input_img, *args):
     return grad_values
 
 if __name__=='__main__':
-    parser = argparse.ArgumentParser(description='Style transfer model')
-    parser.add_argument('--style', '-s', type=str, required=True,
-                        help='style image file name')
-    parser.add_argument('--base', '-b', type=str, required=True,
-                        help='base image file name')
-    parser.add_argument('--output', '-o', default=None, type=str,
-                        help='output model file path')
-    args = parser.parse_args()
+    if(not FLAG_JUPYTER):
+        parser = argparse.ArgumentParser(description='Style transfer model')
+        parser.add_argument('--style', '-s', type=str, required=True,
+                            help='style image file name')
+        parser.add_argument('--base', '-b', type=str, required=True,
+                            help='base image file name')
+        parser.add_argument('--output', '-o', default='output', type=str,
+                            help='output model file path')
+        args = parser.parse_args()
+        style_reference_image_path = args.style
+        base_image_path = args.base
+        output_image_path = args.output
+    else:
+        style_reference_image_path = 'style.png'
+        base_image_path = 'base.png'
+        output_image_path = 'output'
+
     weights_alpha = 0.025
     weights_beta = 1.0
     iter = 10
     print('Settings: ' + K.image_data_format())
 
-    style_reference_image_path = args.style
-    base_image_path = args.base
-
     base_img = image.load_img(base_image_path)
     style_img = image.load_img(style_reference_image_path)
-    style_img = style_img.crop((0, 0, 300, 500))
+    #style_img = style_img.crop((0, 0, 300, 500))
     #style_img.show()
     #style_img.save('temp.png')
 
@@ -145,12 +153,13 @@ if __name__=='__main__':
                                   _output_image], axis = 0)
     model = vgg16.VGG16(input_tensor=input_tensor,
                         weights='imagenet', include_top=False)
+    model.summary()
     outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
 
     #print(outputs_dict.keys())
 
     # /*--- calc content loss ---*/
-    temp_features = outputs_dict['block5_conv2']
+    temp_features = outputs_dict['block4_conv2']
     temp_base_img_features = temp_features[0, :, :, :]
     temp_output_img_featurs = temp_features[2, :, :, :]
 
@@ -178,18 +187,26 @@ if __name__=='__main__':
 
     f_outputs = K.function([_output_image], _outputs)
 
-    input_base_img = preprocess_forvgg(base_img, output_img_width, output_img_height) # change noise image
+    init_img = np.random.uniform(0, 255, (1, output_img_height, output_img_width, 3))
+    init_img = vgg16.preprocess_input(init_img)
+    #print(init_img.shape)
+    #input_base_img = preprocess_forvgg(base_img, output_img_width, output_img_height) # change noise image
+    #print(input_base_img.shape)
     evaluator = Evaluator()
 
     for i in range(iter):
         print('Start of iteration', i)
         start_time = time.time()
-        x, min_val, info = fmin_l_bfgs_b(evaluator.loss, input_base_img.flatten(), args = (output_img_width, output_img_height), fprime=evaluator.grads, maxfun=20)
+        init_img, min_val, info = fmin_l_bfgs_b(evaluator.loss, init_img.flatten(), args = (output_img_width, output_img_height), fprime=evaluator.grads, maxfun=20)
         print('Current loss value:', min_val)
         # save current generated image
-        img = deprocess_image(x.copy(), output_img_width, output_img_height)
-        fname = 'test' + '_at_iteration_%d.png' % i
-        image.save_img(fname, img)
+        img = deprocess_image(init_img.copy(), output_img_width, output_img_height)
+        fname = output_image_path + '_at_iteration_%02d.png' % i
+        if(not FLAG_JUPYTER):
+            image.save_img(fname, img)
+        else:
+            pilImg = Image.fromarray(np.uint8(img))
+            pilImg.save(fname + '.png', 'PNG', quality=100, optimize=True)
         end_time = time.time()
         print('Image saved as', fname)
         print('Iteration %d completed in %ds' % (i, end_time - start_time))
