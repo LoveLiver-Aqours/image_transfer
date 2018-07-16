@@ -222,9 +222,11 @@ if __name__=='__main__':
     c_loss = weights_content * content_loss(temp_base_img_features, temp_output_img_featurs)
 
     # /*--- calc style loss ---*/
-    target_layers = ['conv1_1', 'conv2_1',
-                     'conv3_1', 'conv4_1',
-                     'conv5_1']
+    target_layers = ['conv1_1', 'conv1_2',
+                     'conv2_1', 'conv2_2',
+                     'conv3_1', 'conv3_2', 'conv3_3',
+                     'conv4_1', 'conv4_2', 'conv4_3',
+                     'conv5_1', 'conv5_2', 'conv5_3']
     #target_layers = ['block1_conv1', 'block2_conv1',
     #                 'block3_conv1', 'block4_conv1',
     #                 'block5_conv1']
