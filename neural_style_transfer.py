@@ -73,9 +73,9 @@ def total_loss(img_out, weights_total):
     b = K.square(img_out[:, :img_out.shape[1] - 1, :img_out.shape[2] - 1, :] - img_out[:, :img_out.shape[1] - 1, 1:, :])
     return weights_total * K.sum(K.pow(a + b, 1.25))
 
-def gram_matrix(mat):
+def gram_matrix(mat, s=-1):
     features = K.batch_flatten(K.permute_dimensions(mat, (2, 0, 1))) # (channel, height, width) -> flatten: 1 dim vector
-    return K.dot(features, K.transpose(features))
+    return K.dot(features + s, K.transpose(features + s))
 
 def eval_loss_and_grads(input_img, width, height):
     #width = args[0]
