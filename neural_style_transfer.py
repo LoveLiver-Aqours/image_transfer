@@ -149,7 +149,7 @@ if __name__=='__main__':
     weights_style = 1.0
     weights_total = 1e-3
 
-    iter = 10
+    iter = 50
     print('Settings: ' + K.image_data_format())
 
     base_img = image.load_img(base_image_path)
